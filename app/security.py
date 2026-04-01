@@ -1,7 +1,7 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
 
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.config import settings
 
@@ -16,6 +16,15 @@ def get_serializer() -> URLSafeTimedSerializer:
 def generate_confirmation_token(booking_id: str) -> str:
     serializer = get_serializer()
     return serializer.dumps({"booking_id": booking_id})
+
+
+def verify_confirmation_token(token: str) -> str:
+    serializer = get_serializer()
+    data = serializer.loads(
+        token,
+        max_age=settings.token_max_age_seconds,
+    )
+    return data["booking_id"]
 
 
 def hash_token(token: str) -> str:

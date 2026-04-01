@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"
     webhook_shared_secret: str
 
+    google_credentials_path: str
+    google_calendar_id: str = "primary"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

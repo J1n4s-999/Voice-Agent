@@ -39,3 +39,15 @@ def mark_confirmation_sent(
     db.commit()
     db.refresh(booking)
     return booking
+
+
+def mark_booking_confirmed(db: Session, booking: Booking) -> Booking:
+    now = datetime.now(timezone.utc)
+    booking.status = "confirmed"
+    booking.confirmed_at = now
+    booking.token_used_at = now
+
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+    return booking
