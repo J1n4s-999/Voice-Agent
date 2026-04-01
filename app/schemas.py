@@ -26,6 +26,14 @@ class GenericMessageResponse(BaseModel):
     message: str
 
 
+class SendConfirmationResponse(BaseModel):
+    ok: bool
+    booking_id: str
+    status: str
+    confirm_link: str
+    expires_at: datetime
+
+
 class BookingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
