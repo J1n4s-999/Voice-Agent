@@ -34,14 +34,6 @@ def create_event(booking):
             "dateTime": end.isoformat(),
             "timeZone": "Europe/Berlin",
         },
-        "conferenceData": {
-            "createRequest": {
-                "requestId": f"{booking.id}",
-                "conferenceSolutionKey": {
-                    "type": "hangoutsMeet"
-                },
-            }
-        },
     }
 
     created_event = (
@@ -49,7 +41,6 @@ def create_event(booking):
         .insert(
             calendarId=settings.google_calendar_id,
             body=event,
-            conferenceDataVersion=1,
         )
         .execute()
     )

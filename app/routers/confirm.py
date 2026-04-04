@@ -1,6 +1,8 @@
-from itsdangerous import BadSignature, SignatureExpired
+import traceback
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
+from itsdangerous import BadSignature, SignatureExpired
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -38,6 +40,7 @@ def confirm_booking(token: str, db: Session = Depends(get_db)):
         return HTMLResponse(
             content="""
             <h1>Booking nicht gefunden</h1>
+            <p>Zu diesem Link konnte kein Termin gefunden werden.</p>
             """,
             status_code=404,
         )
@@ -48,6 +51,7 @@ def confirm_booking(token: str, db: Session = Depends(get_db)):
         return HTMLResponse(
             content="""
             <h1>Ungültiger Link</h1>
+            <p>Der Token stimmt nicht mit dem gespeicherten Booking überein.</p>
             """,
             status_code=400,
         )
@@ -56,30 +60,41 @@ def confirm_booking(token: str, db: Session = Depends(get_db)):
         return HTMLResponse(
             content="""
             <h1>Bereits bestätigt</h1>
+            <p>Dieser Termin wurde bereits bestätigt.</p>
             """,
             status_code=400,
         )
 
-    # ✅ Booking bestätigen
-    mark_booking_confirmed(db, booking)
-
-    # 🔥 Google Calendar Event erstellen
     try:
         event_id, meet_link = create_event(booking)
 
         booking.calendar_event_id = event_id
         booking.google_meet_link = meet_link
-
         db.add(booking)
         db.commit()
+        db.refresh(booking)
 
     except Exception as e:
-        print("Google Calendar Fehler:", e)
+        print("GOOGLE CALENDAR ERROR:", repr(e))
+        traceback.print_exc()
+        return HTMLResponse(
+            content=f"""
+            <h1>Google Calendar Fehler</h1>
+            <pre>{str(e)}</pre>
+            """,
+            status_code=500,
+        )
+
+    mark_booking_confirmed(db, booking)
 
     return HTMLResponse(
         content=f"""
         <h1>Termin bestätigt</h1>
-        <p>Danke {booking.name}, dein Termin wurde bestätigt.</p>
+        <p>Danke {booking.name}, dein Termin wurde erfolgreich bestätigt.</p>
+        <p>E-Mail: {booking.email}</p>
+        <p>Status: confirmed</p>
+        <p>Kalender-Event-ID: {booking.calendar_event_id}</p>
+        <p>Meet-Link: {booking.google_meet_link or 'Kein Meet-Link zurückgegeben'}</p>
         """,
         status_code=200,
     )
