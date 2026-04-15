@@ -13,7 +13,6 @@ def normalize_database_url(url: str) -> str:
 
 
 database_url = normalize_database_url(settings.database_url)
-print("DB URL USED:", database_url)
 
 connect_args = {}
 if database_url.startswith("sqlite"):
