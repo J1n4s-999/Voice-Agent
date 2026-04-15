@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.schemas import (
+    BookingAttemptResponse,
     BookingRequest,
-    BookingResponse,
     SendConfirmationRequest,
     SendConfirmationResponse,
 )
@@ -14,6 +14,7 @@ from app.security import (
     get_token_expiry,
     hash_token,
 )
+from app.services.availability import check_availability_payload
 from app.services.bookings import (
     create_booking,
     get_booking_by_id,
@@ -24,14 +25,37 @@ from app.services.email import send_confirmation_email
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
-@router.post("/request-booking", response_model=BookingResponse)
+@router.post("/request-booking", response_model=BookingAttemptResponse)
 def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
+    availability = check_availability_payload(
+        db=db,
+        requested_start=payload.requested_start,
+        duration_minutes=payload.duration_minutes,
+        alternative_count=3,
+        slot_interval_minutes=30,
+    )
+
+    if not availability["available"]:
+        return BookingAttemptResponse(
+            ok=False,
+            booking_id=None,
+            status="rejected",
+            message="Der gewünschte Termin ist nicht verfügbar.",
+            conflict_source=availability.get("conflict_source"),
+            alternatives=availability.get("alternatives", []),
+            spoken_text=availability.get("spoken_text"),
+        )
+
     booking = create_booking(db, payload)
-    return BookingResponse(
+
+    return BookingAttemptResponse(
         ok=True,
         booking_id=booking.id,
         status=booking.status,
         message="Booking wurde als pending gespeichert.",
+        conflict_source=None,
+        alternatives=[],
+        spoken_text="Ja, der Termin ist frei. Ich habe ihn vorgemerkt.",
     )
 
 

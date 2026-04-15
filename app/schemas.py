@@ -51,3 +51,12 @@ class BookingRead(BaseModel):
     google_meet_link: str | None = None
     created_at: datetime
     updated_at: datetime
+
+class BookingAttemptResponse(BaseModel):
+    ok: bool
+    booking_id: str | None = None
+    status: str
+    message: str
+    conflict_source: str | None = None
+    alternatives: list[str] = []
+    spoken_text: str | None = None
