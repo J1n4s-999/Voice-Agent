@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 
 from google.oauth2 import service_account
@@ -5,15 +6,22 @@ from googleapiclient.discovery import build
 
 from app.config import settings
 
-
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
 def get_calendar_service():
-    credentials = service_account.Credentials.from_service_account_file(
-        settings.google_credentials_path,
-        scopes=SCOPES,
-    )
+    if settings.google_service_account_json:
+        info = json.loads(settings.google_service_account_json)
+        credentials = service_account.Credentials.from_service_account_info(
+            info,
+            scopes=SCOPES,
+        )
+    else:
+        credentials = service_account.Credentials.from_service_account_file(
+            settings.google_credentials_path,
+            scopes=SCOPES,
+        )
+
     return build("calendar", "v3", credentials=credentials)
 
 

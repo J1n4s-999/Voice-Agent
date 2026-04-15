@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -6,7 +6,6 @@ from app.db import get_db
 from app.schemas import (
     BookingRequest,
     BookingResponse,
-    GenericMessageResponse,
     SendConfirmationRequest,
     SendConfirmationResponse,
 )
@@ -20,6 +19,7 @@ from app.services.bookings import (
     get_booking_by_id,
     mark_confirmation_sent,
 )
+from app.services.email import send_confirmation_email
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
@@ -40,13 +40,7 @@ def send_confirmation(payload: SendConfirmationRequest, db: Session = Depends(ge
     booking = get_booking_by_id(db, payload.booking_id)
 
     if not booking:
-        return SendConfirmationResponse(
-            ok=False,
-            booking_id="",
-            status="not_found",
-            confirm_link="",
-            expires_at=get_token_expiry(),
-        )
+        raise HTTPException(status_code=404, detail="Booking nicht gefunden.")
 
     token = generate_confirmation_token(booking.id)
     token_hash = hash_token(token)
@@ -60,6 +54,17 @@ def send_confirmation(payload: SendConfirmationRequest, db: Session = Depends(ge
     )
 
     confirm_link = f"{settings.public_base_url}/confirm/{token}"
+
+    try:
+        send_confirmation_email(
+            to_email=booking.email,
+            name=booking.name,
+            requested_start=booking.requested_start,
+            duration_minutes=booking.duration_minutes,
+            confirm_link=confirm_link,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"E-Mail-Versand fehlgeschlagen: {e}")
 
     return SendConfirmationResponse(
         ok=True,

@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"
     webhook_shared_secret: str
 
-    google_credentials_path: str
+    google_credentials_path: str | None = None
+    google_service_account_json: str | None = None
     google_calendar_id: str = "primary"
 
     model_config = SettingsConfigDict(
@@ -24,6 +25,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    postmark_server_token: str
+    email_from: str
 
 
 settings = Settings()
