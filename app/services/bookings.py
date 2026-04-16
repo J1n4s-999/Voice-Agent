@@ -3,15 +3,21 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models import Booking
-from app.schemas import BookingRequest
 
 
-def create_booking(db: Session, payload: BookingRequest) -> Booking:
+def create_booking(
+    db: Session,
+    *,
+    name: str,
+    email: str,
+    requested_start: datetime,
+    duration_minutes: int,
+) -> Booking:
     booking = Booking(
-        name=payload.name.strip(),
-        email=payload.email.lower().strip(),
-        requested_start=payload.requested_start,
-        duration_minutes=payload.duration_minutes,
+        name=name.strip(),
+        email=email.lower().strip(),
+        requested_start=requested_start,
+        duration_minutes=duration_minutes,
         status="pending",
     )
     db.add(booking)

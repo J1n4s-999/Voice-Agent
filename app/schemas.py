@@ -1,13 +1,16 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from datetime import datetime
+from pydantic import BaseModel, EmailStr
 
 
 class BookingRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
+    name: str
     email: EmailStr
-    requested_start: datetime
-    duration_minutes: int = Field(..., ge=15, le=180)
+    date: str
+    time: str
+    duration_minutes: int
 
 
 class BookingResponse(BaseModel):

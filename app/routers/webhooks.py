@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from app.config import settings
 from app.db import get_db
@@ -22,14 +24,31 @@ from app.services.bookings import (
 )
 from app.services.email import send_confirmation_email
 
+BERLIN_TZ = ZoneInfo("Europe/Berlin")
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
 @router.post("/request-booking", response_model=BookingAttemptResponse)
 def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
+    try:
+        requested_start = datetime.strptime(
+            f"{payload.date} {payload.time}",
+            "%Y-%m-%d %H:%M"
+        ).replace(tzinfo=BERLIN_TZ)
+    except ValueError:
+        return BookingAttemptResponse(
+            ok=False,
+            booking_id=None,
+            status="rejected",
+            message="Datum oder Uhrzeit konnten nicht korrekt verarbeitet werden.",
+            conflict_source=None,
+            alternatives=[],
+            spoken_text="Ich konnte das Datum oder die Uhrzeit leider nicht korrekt verstehen. Bitte nenne beides noch einmal."
+        )
+
     availability = check_availability_payload(
         db=db,
-        requested_start=payload.requested_start,
+        requested_start=requested_start,
         duration_minutes=payload.duration_minutes,
         alternative_count=3,
         slot_interval_minutes=30,
@@ -46,7 +65,17 @@ def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
             spoken_text=availability.get("spoken_text"),
         )
 
-    booking = create_booking(db, payload)
+    booking_payload = {
+        "name": payload.name,
+        "email": payload.email,
+        "requested_start": requested_start,
+        "duration_minutes": payload.duration_minutes,
+    }
+
+    booking = create_booking(
+        db=db,
+        payload=type("BookingPayload", (), booking_payload)()
+    )
 
     return BookingAttemptResponse(
         ok=True,
@@ -55,7 +84,7 @@ def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
         message="Booking wurde als pending gespeichert.",
         conflict_source=None,
         alternatives=[],
-        spoken_text="Ja, der Termin ist frei. Ich habe ihn vorgemerkt.",
+        spoken_text="Ja, der Termin ist frei. Ich habe ihn vorgemerkt."
     )
 
 
