@@ -42,3 +42,17 @@ def mark_confirmation_sent(
     db.commit()
     db.refresh(booking)
     return booking
+
+
+def mark_booking_confirmed(
+    db: Session,
+    booking: Booking,
+    calendar_event_id: str | None = None,
+) -> Booking:
+    booking.status = "confirmed"
+    booking.calendar_event_id = calendar_event_id
+    booking.confirm_token_hash = None
+    booking.confirm_token_expires_at = None
+    db.commit()
+    db.refresh(booking)
+    return booking
