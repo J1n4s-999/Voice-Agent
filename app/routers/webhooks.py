@@ -34,16 +34,6 @@ def build_requested_start(payload: BookingRequest) -> datetime:
     now = datetime.now(BERLIN_TZ)
 
     try:
-        if payload.year is not None:
-            return datetime(
-                year=payload.year,
-                month=payload.month,
-                day=payload.day,
-                hour=payload.hour,
-                minute=payload.minute,
-                tzinfo=BERLIN_TZ,
-            )
-
         candidate = datetime(
             year=now.year,
             month=payload.month,
