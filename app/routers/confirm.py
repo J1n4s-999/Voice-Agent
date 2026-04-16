@@ -64,21 +64,21 @@ def confirm_booking(token: str, db: Session = Depends(get_db)):
 
     token_hash = hash_token(token)
 
-    if not booking.confirm_token_hash:
+    if not booking.confirmation_token_hash:
         return html_page(
             "Ungültiger Link",
             "Für diese Buchung wurde kein gültiger Bestätigungslink gespeichert.",
         )
 
-    if booking.confirm_token_hash != token_hash:
+    if booking.confirmation_token_hash != token_hash:
         return html_page(
             "Ungültiger Link",
             "Der Token stimmt nicht mit dem gespeicherten Booking überein.",
         )
 
-    if booking.confirm_token_expires_at:
+    if booking.confirmation_token_expires_at:
         now = datetime.now(BERLIN_TZ)
-        expires_at = booking.confirm_token_expires_at
+        expires_at = booking.confirmation_token_expires_at
 
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=BERLIN_TZ)
