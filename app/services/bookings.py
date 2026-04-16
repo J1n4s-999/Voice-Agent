@@ -38,7 +38,7 @@ def mark_confirmation_sent(
 ) -> Booking:
     booking.status = "email_sent"
     booking.confirmation_token_hash = token_hash
-    booking.confirmation_token_expires_at = expires_at
+    booking.confirmation_expires_at = expires_at
     db.commit()
     db.refresh(booking)
     return booking
@@ -52,7 +52,7 @@ def mark_booking_confirmed(
     booking.status = "confirmed"
     booking.calendar_event_id = calendar_event_id
     booking.confirmation_token_hash = None
-    booking.confirmation_token_expires_at = None
+    booking.confirmation_expires_at = None
     db.commit()
     db.refresh(booking)
     return booking

@@ -76,9 +76,9 @@ def confirm_booking(token: str, db: Session = Depends(get_db)):
             "Der Token stimmt nicht mit dem gespeicherten Booking überein.",
         )
 
-    if booking.confirmation_token_expires_at:
+    if booking.confirmation_expires_at:
         now = datetime.now(BERLIN_TZ)
-        expires_at = booking.confirmation_token_expires_at
+        expires_at = booking.confirmation_expires_at
 
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=BERLIN_TZ)
