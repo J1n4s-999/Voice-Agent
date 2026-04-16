@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -34,26 +34,11 @@ def mark_confirmation_sent(
     db: Session,
     booking: Booking,
     token_hash: str,
-    expires_at,
+    expires_at: datetime,
 ) -> Booking:
-    booking.confirmation_token_hash = token_hash
-    booking.confirmation_expires_at = expires_at
-    booking.confirmation_sent_at = datetime.now(timezone.utc)
     booking.status = "email_sent"
-
-    db.add(booking)
-    db.commit()
-    db.refresh(booking)
-    return booking
-
-
-def mark_booking_confirmed(db: Session, booking: Booking) -> Booking:
-    now = datetime.now(timezone.utc)
-    booking.status = "confirmed"
-    booking.confirmed_at = now
-    booking.token_used_at = now
-
-    db.add(booking)
+    booking.confirm_token_hash = token_hash
+    booking.confirm_token_expires_at = expires_at
     db.commit()
     db.refresh(booking)
     return booking

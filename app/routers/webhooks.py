@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
@@ -25,16 +26,53 @@ from app.services.bookings import (
 from app.services.email import send_confirmation_email
 
 BERLIN_TZ = ZoneInfo("Europe/Berlin")
+
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+
+
+def build_requested_start(payload: BookingRequest) -> datetime:
+    now = datetime.now(BERLIN_TZ)
+
+    try:
+        if payload.year is not None:
+            return datetime(
+                year=payload.year,
+                month=payload.month,
+                day=payload.day,
+                hour=payload.hour,
+                minute=payload.minute,
+                tzinfo=BERLIN_TZ,
+            )
+
+        candidate = datetime(
+            year=now.year,
+            month=payload.month,
+            day=payload.day,
+            hour=payload.hour,
+            minute=payload.minute,
+            tzinfo=BERLIN_TZ,
+        )
+
+        if candidate < now:
+            candidate = datetime(
+                year=now.year + 1,
+                month=payload.month,
+                day=payload.day,
+                hour=payload.hour,
+                minute=payload.minute,
+                tzinfo=BERLIN_TZ,
+            )
+
+        return candidate
+
+    except ValueError as e:
+        raise ValueError(f"Ungültiges Datum/Uhrzeit: {e}") from e
 
 
 @router.post("/request-booking", response_model=BookingAttemptResponse)
 def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
     try:
-        requested_start = datetime.strptime(
-            f"{payload.date} {payload.time}",
-            "%Y-%m-%d %H:%M"
-        ).replace(tzinfo=BERLIN_TZ)
+        requested_start = build_requested_start(payload)
     except ValueError:
         return BookingAttemptResponse(
             ok=False,
@@ -43,7 +81,7 @@ def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
             message="Datum oder Uhrzeit konnten nicht korrekt verarbeitet werden.",
             conflict_source=None,
             alternatives=[],
-            spoken_text="Ich konnte das Datum oder die Uhrzeit leider nicht korrekt verstehen. Bitte nenne beides noch einmal."
+            spoken_text="Ich konnte das Datum oder die Uhrzeit leider nicht korrekt verstehen. Bitte nenne beides noch einmal.",
         )
 
     availability = check_availability_payload(
@@ -80,7 +118,7 @@ def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
         message="Booking wurde als pending gespeichert.",
         conflict_source=None,
         alternatives=[],
-        spoken_text="Ja, der Termin ist frei. Ich habe ihn vorgemerkt."
+        spoken_text="Ja, der Termin ist frei. Ich habe ihn vorgemerkt.",
     )
 
 
