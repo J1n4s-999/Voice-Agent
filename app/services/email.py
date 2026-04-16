@@ -1,12 +1,28 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from postmarker.core import PostmarkClient
 
 from app.config import settings
 
+BERLIN_TZ = ZoneInfo("Europe/Berlin")
+
+
+def to_berlin(dt: datetime) -> datetime:
+    """
+    Sorgt dafür, dass ein datetime sicher in Europe/Berlin vorliegt.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=BERLIN_TZ)
+    return dt.astimezone(BERLIN_TZ)
+
 
 def format_dt(dt: datetime) -> str:
-    return dt.astimezone().strftime("%d.%m.%Y um %H:%M Uhr")
+    """
+    Formatiert ein datetime sicher in deutscher Darstellung für die Mail.
+    """
+    local_dt = to_berlin(dt)
+    return local_dt.strftime("%d.%m.%Y um %H:%M Uhr")
 
 
 def send_confirmation_email(
@@ -18,6 +34,9 @@ def send_confirmation_email(
     confirm_link: str,
 ) -> dict:
     client = PostmarkClient(server_token=settings.postmark_server_token)
+
+    requested_start_local = to_berlin(requested_start)
+    formatted_start = format_dt(requested_start_local)
 
     subject = "Bitte bestätige deinen Termin"
 
@@ -32,8 +51,10 @@ def send_confirmation_email(
           bitte bestätige deinen Termin über den Button unten.
         </p>
 
-        <p><strong>Datum:</strong> {format_dt(requested_start)}<br>
-        <strong>Dauer:</strong> {duration_minutes} Minuten</p>
+        <p>
+          <strong>Datum:</strong> {formatted_start}<br>
+          <strong>Dauer:</strong> {duration_minutes} Minuten
+        </p>
 
         <p style="margin: 24px 0;">
           <a href="{confirm_link}"
@@ -53,7 +74,7 @@ def send_confirmation_email(
     text_body = (
         f"Hallo {name},\n\n"
         f"bitte bestätige deinen Termin.\n\n"
-        f"Datum: {format_dt(requested_start)}\n"
+        f"Datum: {formatted_start}\n"
         f"Dauer: {duration_minutes} Minuten\n\n"
         f"Bestätigungslink:\n{confirm_link}\n\n"
         f"Viele Grüße\n"

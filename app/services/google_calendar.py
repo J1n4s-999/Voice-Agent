@@ -1,5 +1,6 @@
 import json
-from datetime import timedelta
+from datetime import timedelta, datetime
+from zoneinfo import ZoneInfo
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -7,6 +8,16 @@ from googleapiclient.discovery import build
 from app.config import settings
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
+BERLIN_TZ = ZoneInfo("Europe/Berlin")
+
+
+def to_berlin(dt: datetime) -> datetime:
+    """
+    Sorgt dafür, dass ein datetime sicher in Europe/Berlin vorliegt.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=BERLIN_TZ)
+    return dt.astimezone(BERLIN_TZ)
 
 
 def get_calendar_service():
@@ -28,7 +39,7 @@ def get_calendar_service():
 def create_event(booking):
     service = get_calendar_service()
 
-    start = booking.requested_start
+    start = to_berlin(booking.requested_start)
     end = start + timedelta(minutes=booking.duration_minutes)
 
     event = {
