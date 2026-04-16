@@ -65,16 +65,12 @@ def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
             spoken_text=availability.get("spoken_text"),
         )
 
-    booking_payload = {
-        "name": payload.name,
-        "email": payload.email,
-        "requested_start": requested_start,
-        "duration_minutes": payload.duration_minutes,
-    }
-
     booking = create_booking(
         db=db,
-        payload=type("BookingPayload", (), booking_payload)()
+        name=payload.name,
+        email=payload.email,
+        requested_start=requested_start,
+        duration_minutes=payload.duration_minutes,
     )
 
     return BookingAttemptResponse(
