@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from app.config import settings
 from app.db import Base, engine
-from app.routers import confirm, webhooks, availability
+from app.routers import confirm, webhooks, availability, admin
 
 app = FastAPI(title=settings.app_name)
 
@@ -15,6 +15,7 @@ def on_startup():
 app.include_router(webhooks.router)
 app.include_router(confirm.router)
 app.include_router(availability.router)
+app.include_router(admin.router)
 
 
 @app.get("/health")

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_port: int = 8000
 
     database_url: str
+    admin_secret: str
 
     token_secret: str
     token_salt: str = "email-confirm"
