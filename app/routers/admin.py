@@ -154,7 +154,7 @@ def admin_login(
         WHERE username = :username
     """),
     {"username": payload.username},
-    ).fetchone()
+    ).mappings().fetchone()
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
