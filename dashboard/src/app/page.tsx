@@ -1,13 +1,7 @@
 async function getBookings() {
-  const res = await fetch(
-    process.env.NEXT_PUBLIC_API_URL + "/api/bookings",
-    {
-      cache: "no-store",
-      headers: {
-        "x-admin-secret": process.env.ADMIN_SECRET || "",
-      },
-    }
-  );
+  const res = await fetch("http://localhost:3000/api/bookings", {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     throw new Error("Failed to load bookings");
