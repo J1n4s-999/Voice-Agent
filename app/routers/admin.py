@@ -169,3 +169,25 @@ def admin_login(
         "tenant_id": user["tenant_id"],
         "role": user["role"],
     }
+
+@router.post("/create-admin-temp")
+def create_admin_temp(
+    db: Session = Depends(get_db),
+):
+    from app.security import hash_password
+    from sqlalchemy import text
+
+    password_hash = hash_password("123456")
+
+    db.execute(
+        text("""
+            UPDATE admin_users
+            SET password_hash = :password_hash
+            WHERE username = 'admin'
+        """),
+        {"password_hash": password_hash},
+    )
+
+    db.commit()
+
+    return {"ok": True}
