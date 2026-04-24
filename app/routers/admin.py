@@ -6,6 +6,7 @@ from app.db import get_db
 from app.models import Booking
 from app.services.bookings import mark_booking_confirmed
 from app.services.google_calendar import create_event
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -13,6 +14,21 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 def require_admin(x_admin_secret: str | None = Header(default=None)):
     if not x_admin_secret or x_admin_secret != settings.admin_secret:
         raise HTTPException(status_code=401, detail="Unauthorized")
+    
+def cleanup_expired_pending_bookings(db: Session):
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
+
+    expired = (
+        db.query(Booking)
+        .filter(Booking.status == "pending")
+        .filter(Booking.created_at < cutoff)
+        .all()
+    )
+
+    for booking in expired:
+        db.delete(booking)
+
+    db.commit()
 
 
 @router.get("/bookings")
@@ -20,6 +36,7 @@ def list_bookings(
     db: Session = Depends(get_db),
     _admin=Depends(require_admin),
 ):
+    cleanup_expired_pending_bookings(db),
     bookings = (
         db.query(Booking)
         .order_by(Booking.requested_start.desc())
