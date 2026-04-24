@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.models import Booking
+from app.services.bookings import mark_booking_confirmed
+from app.services.google_calendar import create_event
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -37,3 +39,55 @@ def list_bookings(
         }
         for b in bookings
     ]
+
+
+@router.delete("/bookings/{booking_id}")
+def delete_booking(
+    booking_id: str,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    db.delete(booking)
+    db.commit()
+
+    return {"ok": True, "message": "Booking deleted"}
+
+
+@router.post("/bookings/{booking_id}/confirm")
+def confirm_booking_manually(
+    booking_id: str,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking.status == "confirmed":
+        return {
+            "ok": True,
+            "message": "Booking already confirmed",
+            "calendar_event_id": booking.calendar_event_id,
+        }
+
+    event_id, meet_link = create_event(booking)
+
+    booking = mark_booking_confirmed(
+        db=db,
+        booking=booking,
+        calendar_event_id=event_id,
+    )
+
+    return {
+        "ok": True,
+        "message": "Booking confirmed",
+        "booking_id": booking.id,
+        "calendar_event_id": event_id,
+        "meet_link": meet_link,
+    }
