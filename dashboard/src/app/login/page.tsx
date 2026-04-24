@@ -4,83 +4,48 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const router = useRouter();
 
-  async function login(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-
+  async function handleLogin() {
     const res = await fetch("/api/login", {
       method: "POST",
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     });
 
-    if (!res.ok) {
-      setError("Falsches Passwort");
-      return;
-    }
+    const data = await res.json();
 
-    router.push("/");
-    router.refresh();
+    if (data.ok) {
+      localStorage.setItem("tenant_id", data.tenant_id);
+      router.push("/");
+    } else {
+      alert("Login fehlgeschlagen");
+    }
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#0f172a",
-        color: "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Arial",
-      }}
-    >
-      <form
-        onSubmit={login}
-        style={{
-          background: "#1e293b",
-          padding: 32,
-          borderRadius: 12,
-          width: 360,
-        }}
-      >
-        <h1 style={{ fontSize: 26, marginBottom: 20 }}>Admin Login</h1>
+    <main style={{ padding: 40 }}>
+      <h1>Login</h1>
 
-        <input
-          type="password"
-          placeholder="Passwort"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 8,
-            border: "1px solid #334155",
-            marginBottom: 12,
-          }}
-        />
+      <input
+        placeholder="Username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+      />
 
-        {error && <p style={{ color: "#f87171" }}>{error}</p>}
+      <br />
 
-        <button
-          type="submit"
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 8,
-            border: "none",
-            background: "#2563eb",
-            color: "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-          }}
-        >
-          Einloggen
-        </button>
-      </form>
+      <input
+        placeholder="Password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <br />
+
+      <button onClick={handleLogin}>Login</button>
     </main>
   );
 }
