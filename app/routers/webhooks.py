@@ -26,6 +26,8 @@ from app.services.bookings import (
 )
 from app.services.email import send_confirmation_email
 import logging
+
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def get_tenant_id_by_agent_key(db: Session, agent_key: str) -> str:
