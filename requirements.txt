@@ -11,3 +11,5 @@ email-validator==2.2.0
 google-api-python-client==2.149.0
 google-auth==2.35.0
 postmarker==1.0
+passlib[bcrypt]
+bcrypt

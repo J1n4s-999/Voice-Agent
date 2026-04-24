@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from itsdangerous import URLSafeTimedSerializer
+from passlib.context import CryptContext
 
 from app.config import settings
 
@@ -12,6 +13,8 @@ serializer = URLSafeTimedSerializer(
     secret_key=settings.token_secret,
     salt=settings.token_salt,
 )
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def generate_confirmation_token(booking_id: str) -> str:
@@ -24,3 +27,11 @@ def hash_token(token: str) -> str:
 
 def get_token_expiry() -> datetime:
     return datetime.now(BERLIN_TZ) + timedelta(seconds=settings.token_max_age_seconds)
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    return pwd_context.verify(password, hashed)
