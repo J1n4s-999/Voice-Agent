@@ -164,8 +164,8 @@ def admin_login(
 
     return {
         "ok": True,
-        "user_id": user.id,
-        "username": user.username,
-        "tenant_id": user.tenant_id,
-        "role": user.role,
+        "user_id": user["id"],
+        "username": user["username"],
+        "tenant_id": user["tenant_id"],
+        "role": user["role"],
     }
