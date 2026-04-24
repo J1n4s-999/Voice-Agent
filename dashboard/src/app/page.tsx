@@ -1,7 +1,13 @@
 async function getBookings() {
-  const res = await fetch("http://localhost:3000/api/bookings", {
-    cache: "no-store",
-  });
+  const res = await fetch(
+    process.env.NEXT_PUBLIC_API_URL + "/api/bookings",
+    {
+      cache: "no-store",
+      headers: {
+        "x-admin-secret": process.env.ADMIN_SECRET || "",
+      },
+    }
+  );
 
   if (!res.ok) {
     throw new Error("Failed to load bookings");
@@ -11,50 +17,46 @@ async function getBookings() {
 }
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleString("de-DE");
+  return new Date(dateString).toLocaleString("de-DE", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
-function getStatusColor(status: string) {
-  switch (status) {
-    case "confirmed":
-      return "text-green-500";
-    case "pending":
-      return "text-yellow-500";
-    case "email_sent":
-      return "text-blue-500";
-    default:
-      return "text-gray-400";
-  }
-}
-
-export default async function Home() {
+export default async function Page() {
   const bookings = await getBookings();
 
   return (
-    <main className="p-10">
-      <h1 className="text-3xl font-bold mb-6">📅 Bookings</h1>
+    <main style={{ padding: "40px", fontFamily: "Arial" }}>
+      <h1 style={{ fontSize: "28px", marginBottom: "20px" }}>
+        📅 Termine Übersicht
+      </h1>
 
-      <table className="w-full border border-gray-700 rounded-lg overflow-hidden">
-        <thead className="bg-gray-800">
-          <tr>
-            <th className="p-3 text-left">Name</th>
-            <th className="p-3 text-left">Email</th>
-            <th className="p-3 text-left">Datum</th>
-            <th className="p-3 text-left">Dauer</th>
-            <th className="p-3 text-left">Status</th>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          background: "#fff",
+        }}
+      >
+        <thead>
+          <tr style={{ background: "#111827", color: "#fff" }}>
+            <th style={th}>Name</th>
+            <th style={th}>E-Mail</th>
+            <th style={th}>Datum</th>
+            <th style={th}>Dauer</th>
+            <th style={th}>Status</th>
           </tr>
         </thead>
 
         <tbody>
           {bookings.map((b: any) => (
-            <tr key={b.id} className="border-t border-gray-700">
-              <td className="p-3">{b.name}</td>
-              <td className="p-3">{b.email}</td>
-              <td className="p-3">{formatDate(b.requested_start)}</td>
-              <td className="p-3">{b.duration_minutes} min</td>
-              <td className={`p-3 font-semibold ${getStatusColor(b.status)}`}>
-                {b.status}
-              </td>
+            <tr key={b.id} style={{ borderBottom: "1px solid #ddd" }}>
+              <td style={td}>{b.name}</td>
+              <td style={td}>{b.email}</td>
+              <td style={td}>{formatDate(b.requested_start)}</td>
+              <td style={td}>{b.duration_minutes} min</td>
+              <td style={td}>{b.status}</td>
             </tr>
           ))}
         </tbody>
@@ -62,3 +64,12 @@ export default async function Home() {
     </main>
   );
 }
+
+const th = {
+  padding: "12px",
+  textAlign: "left" as const,
+};
+
+const td = {
+  padding: "12px",
+};
