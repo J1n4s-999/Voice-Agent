@@ -11,6 +11,7 @@ class BookingRequest(BaseModel):
     minute: int
     duration_minutes: int
     year: int | None = None
+    agent_key: str
 
 
 class BookingAttemptResponse(BaseModel):

@@ -12,6 +12,7 @@ def create_booking(
     email: str,
     requested_start: datetime,
     duration_minutes: int,
+    tenant_id: str,
 ) -> Booking:
     booking = Booking(
         name=name.strip(),
@@ -19,6 +20,7 @@ def create_booking(
         requested_start=requested_start,
         duration_minutes=duration_minutes,
         status="pending",
+        tenant_id=tenant_id,
     )
     db.add(booking)
     db.commit()

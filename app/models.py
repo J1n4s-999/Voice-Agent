@@ -23,6 +23,7 @@ class Booking(Base):
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
 
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending", index=True)
+    tenant_id: Mapped[str] = mapped_column(String, nullable=False)
 
     confirmation_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     confirmation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.config import settings
 from app.db import get_db
@@ -24,6 +25,19 @@ from app.services.bookings import (
     mark_confirmation_sent,
 )
 from app.services.email import send_confirmation_email
+import logging
+logger = logging.getLogger(__name__)
+
+def get_tenant_id_by_agent_key(db: Session, agent_key: str) -> str:
+    tenant = db.execute(
+        text("SELECT id FROM tenants WHERE agent_key = :agent_key"),
+        {"agent_key": agent_key},
+    ).fetchone()
+
+    if not tenant:
+        raise HTTPException(status_code=400, detail="Invalid agent_key")
+
+    return tenant[0]
 
 BERLIN_TZ = ZoneInfo("Europe/Berlin")
 
@@ -61,9 +75,28 @@ def build_requested_start(payload: BookingRequest) -> datetime:
 
 @router.post("/request-booking", response_model=BookingAttemptResponse)
 def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
+    logger.info("Booking request received with agent_key=%s", payload.agent_key)
+
+    tenant_id = get_tenant_id_by_agent_key(db, payload.agent_key)
+
+    logger.info(
+        "Resolved agent_key=%s to tenant_id=%s",
+        payload.agent_key,
+        tenant_id,
+    )
+
     try:
         requested_start = build_requested_start(payload)
     except ValueError:
+        logger.warning(
+            "Invalid date/time for agent_key=%s: day=%s month=%s hour=%s minute=%s",
+            payload.agent_key,
+            payload.day,
+            payload.month,
+            payload.hour,
+            payload.minute,
+        )
+
         return BookingAttemptResponse(
             ok=False,
             booking_id=None,
@@ -74,12 +107,25 @@ def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
             spoken_text="Ich konnte das Datum oder die Uhrzeit leider nicht korrekt verstehen. Bitte nenne beides noch einmal.",
         )
 
+    logger.info(
+        "Parsed requested_start=%s for tenant_id=%s",
+        requested_start.isoformat(),
+        tenant_id,
+    )
+
     availability = check_availability_payload(
         db=db,
         requested_start=requested_start,
         duration_minutes=payload.duration_minutes,
         alternative_count=3,
         slot_interval_minutes=30,
+    )
+
+    logger.info(
+        "Availability result for tenant_id=%s requested_start=%s available=%s",
+        tenant_id,
+        requested_start.isoformat(),
+        availability.get("available"),
     )
 
     if not availability["available"]:
@@ -99,6 +145,14 @@ def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
         email=payload.email,
         requested_start=requested_start,
         duration_minutes=payload.duration_minutes,
+        tenant_id=tenant_id,
+    )
+
+    logger.info(
+        "Created booking id=%s tenant_id=%s status=%s",
+        booking.id,
+        tenant_id,
+        booking.status,
     )
 
     return BookingAttemptResponse(
