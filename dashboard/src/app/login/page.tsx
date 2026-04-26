@@ -33,8 +33,13 @@ export default function LoginPage() {
 
       localStorage.setItem("tenant_id", data.tenant_id);
       localStorage.setItem("username", data.username);
+      localStorage.setItem("role", data.role);
 
-      router.push("/");
+    if (data.role === "super_admin") {
+    router.push("/tenants");
+    } else {
+    router.push("/");
+    }
     } catch {
       setError("Login fehlgeschlagen. Bitte erneut versuchen.");
     } finally {
