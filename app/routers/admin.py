@@ -169,3 +169,27 @@ def admin_login(
         "tenant_id": user["tenant_id"],
         "role": user["role"],
     }
+
+@router.get("/tenants")
+def list_tenants(
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    from sqlalchemy import text
+
+    tenants = db.execute(
+        text("""
+            SELECT id, name, agent_key
+            FROM tenants
+            ORDER BY name ASC
+        """)
+    ).mappings().all()
+
+    return [
+        {
+            "id": t["id"],
+            "name": t["name"],
+            "agent_key": t["agent_key"],
+        }
+        for t in tenants
+    ]
