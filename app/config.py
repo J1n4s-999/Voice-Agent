@@ -30,5 +30,9 @@ class Settings(BaseSettings):
     postmark_server_token: str
     email_from: str
 
+    google_oauth_client_id: str
+    google_oauth_client_secret: str
+    google_oauth_redirect_uri: str
+
 
 settings = Settings()
