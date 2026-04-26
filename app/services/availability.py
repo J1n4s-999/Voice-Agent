@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from app.models import Booking
 from app.services.google_calendar import get_calendar_service
-from app.config import settings
 
 
 BERLIN_TZ = ZoneInfo("Europe/Berlin")
@@ -65,16 +64,14 @@ def has_db_conflict(
 def has_google_calendar_conflict(
     start: datetime,
     end: datetime,
+    tenant_id: str,
 ) -> bool:
-    """
-    Prüft, ob im Google Kalender ein Termin in diesem Zeitraum liegt.
-    """
-    service = get_calendar_service()
+    service, calendar_id = get_calendar_service(tenant_id)
 
     events_result = (
         service.events()
         .list(
-            calendarId=settings.google_calendar_id,
+            calendarId=calendar_id,
             timeMin=start.isoformat(),
             timeMax=end.isoformat(),
             singleEvents=True,
@@ -86,8 +83,7 @@ def has_google_calendar_conflict(
     events = events_result.get("items", [])
 
     for event in events:
-        status = event.get("status")
-        if status == "cancelled":
+        if event.get("status") == "cancelled":
             continue
         return True
 
@@ -98,19 +94,15 @@ def is_slot_available(
     db: Session,
     requested_start: datetime,
     duration_minutes: int,
+    tenant_id: str,
 ) -> tuple[bool, str | None]:
-    """
-    Gibt zurück:
-    - True/False
-    - Grund bei Belegung: "db" oder "google"
-    """
     start = _to_berlin(requested_start)
     end = start + timedelta(minutes=duration_minutes)
 
     if has_db_conflict(db, start, end):
         return False, "db"
 
-    if has_google_calendar_conflict(start, end):
+    if has_google_calendar_conflict(start, end, tenant_id):
         return False, "google"
 
     return True, None
@@ -120,14 +112,11 @@ def find_alternative_slots(
     db: Session,
     requested_start: datetime,
     duration_minutes: int,
+    tenant_id: str,
     count: int = 3,
     slot_interval_minutes: int = 30,
     search_limit: int = 12,
 ) -> list[datetime]:
-    """
-    Sucht die nächsten freien Slots ab dem gewünschten Startzeitpunkt.
-    search_limit = wie viele Kandidaten maximal geprüft werden
-    """
     alternatives: list[datetime] = []
     current = _to_berlin(requested_start)
 
@@ -136,6 +125,7 @@ def find_alternative_slots(
             db=db,
             requested_start=current,
             duration_minutes=duration_minutes,
+            tenant_id=tenant_id,
         )
         if available:
             alternatives.append(current)
@@ -183,6 +173,7 @@ def check_availability_payload(
     db: Session,
     requested_start: datetime,
     duration_minutes: int,
+    tenant_id: str,
     alternative_count: int = 3,
     slot_interval_minutes: int = 30,
 ) -> dict:
@@ -190,16 +181,17 @@ def check_availability_payload(
         db=db,
         requested_start=requested_start,
         duration_minutes=duration_minutes,
+        tenant_id=tenant_id,
     )
 
     alternatives: list[datetime] = []
 
     if not available:
-        # Suche ab dem nächsten Slot weiter
         alternatives = find_alternative_slots(
             db=db,
             requested_start=_to_berlin(requested_start) + timedelta(minutes=slot_interval_minutes),
             duration_minutes=duration_minutes,
+            tenant_id=tenant_id,
             count=alternative_count,
             slot_interval_minutes=slot_interval_minutes,
         )

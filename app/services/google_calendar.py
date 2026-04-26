@@ -48,6 +48,10 @@ def get_google_connection(tenant_id: str):
     finally:
         db.close()
 
+def get_calendar_service(tenant_id: str):
+    service, calendar_id = get_oauth_calendar_service(tenant_id)
+    return service, calendar_id
+
 
 def get_oauth_calendar_service(tenant_id: str):
     connection = get_google_connection(tenant_id)
