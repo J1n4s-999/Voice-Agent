@@ -1,15 +1,31 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
 from app.models import Booking
+from app.security import hash_password, verify_password
 from app.services.bookings import mark_booking_confirmed
 from app.services.google_calendar import create_event
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class CreateTenantRequest(BaseModel):
+    name: str
+    agent_key: str
+    username: str
+    password: str
 
 
 def require_admin(x_admin_secret: str | None = Header(default=None)):
@@ -32,6 +48,118 @@ def cleanup_expired_pending_bookings(db: Session, tenant_id: str):
         db.delete(booking)
 
     db.commit()
+
+
+@router.post("/login")
+def admin_login(
+    payload: AdminLoginRequest,
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.execute(
+            text("""
+                SELECT id, tenant_id, username, password_hash, role
+                FROM admin_users
+                WHERE username = :username
+            """),
+            {"username": payload.username.strip().lower()},
+        )
+        .mappings()
+        .fetchone()
+    )
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(payload.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    return {
+        "ok": True,
+        "user_id": user["id"],
+        "username": user["username"],
+        "tenant_id": user["tenant_id"],
+        "role": user["role"],
+    }
+
+
+@router.get("/tenants")
+def list_tenants(
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    tenants = (
+        db.execute(
+            text("""
+                SELECT id, name, agent_key
+                FROM tenants
+                ORDER BY name ASC
+            """)
+        )
+        .mappings()
+        .all()
+    )
+
+    return [
+        {
+            "id": t["id"],
+            "name": t["name"],
+            "agent_key": t["agent_key"],
+        }
+        for t in tenants
+    ]
+
+
+@router.post("/tenants")
+def create_tenant(
+    payload: CreateTenantRequest,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    tenant_id = str(uuid.uuid4())
+    agent_key = payload.agent_key.strip().lower()
+    username = payload.username.strip().lower()
+
+    try:
+        db.execute(
+            text("""
+                INSERT INTO tenants (id, name, agent_key)
+                VALUES (:id, :name, :agent_key)
+            """),
+            {
+                "id": tenant_id,
+                "name": payload.name.strip(),
+                "agent_key": agent_key,
+            },
+        )
+
+        db.execute(
+            text("""
+                INSERT INTO admin_users (id, tenant_id, username, password_hash, role)
+                VALUES (:id, :tenant_id, :username, :password_hash, :role)
+            """),
+            {
+                "id": str(uuid.uuid4()),
+                "tenant_id": tenant_id,
+                "username": username,
+                "password_hash": hash_password(payload.password),
+                "role": "tenant_admin",
+            },
+        )
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Tenant/User konnte nicht erstellt werden: {e}")
+
+    return {
+        "ok": True,
+        "tenant_id": tenant_id,
+        "name": payload.name.strip(),
+        "agent_key": agent_key,
+        "username": username,
+    }
 
 
 @router.get("/bookings")
@@ -131,65 +259,3 @@ def confirm_booking_manually(
         "calendar_event_id": event_id,
         "meet_link": meet_link,
     }
-
-from pydantic import BaseModel
-from sqlalchemy import text
-from app.security import verify_password
-
-
-class AdminLoginRequest(BaseModel):
-    username: str
-    password: str
-
-
-@router.post("/login")
-def admin_login(
-    payload: AdminLoginRequest,
-    db: Session = Depends(get_db),
-):
-    user = db.execute(
-    text("""
-        SELECT id, tenant_id, username, password_hash, role
-        FROM admin_users
-        WHERE username = :username
-    """),
-    {"username": payload.username},
-    ).mappings().fetchone()
-
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    if not verify_password(payload.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    return {
-        "ok": True,
-        "user_id": user["id"],
-        "username": user["username"],
-        "tenant_id": user["tenant_id"],
-        "role": user["role"],
-    }
-
-@router.get("/tenants")
-def list_tenants(
-    db: Session = Depends(get_db),
-    _admin=Depends(require_admin),
-):
-    from sqlalchemy import text
-
-    tenants = db.execute(
-        text("""
-            SELECT id, name, agent_key
-            FROM tenants
-            ORDER BY name ASC
-        """)
-    ).mappings().all()
-
-    return [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "agent_key": t["agent_key"],
-        }
-        for t in tenants
-    ]
