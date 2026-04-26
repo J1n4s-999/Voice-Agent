@@ -193,7 +193,6 @@ def list_bookings(
         for b in bookings
     ]
 
-
 @router.delete("/bookings/{booking_id}")
 def delete_booking(
     booking_id: str,
@@ -211,10 +210,24 @@ def delete_booking(
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
 
+    if booking.calendar_event_id:
+        try:
+            from app.services.google_calendar import delete_event
+
+            delete_event(
+                calendar_event_id=booking.calendar_event_id,
+                tenant_id=tenant_id
+            )
+        except Exception as e:
+            print("Google delete failed:", e)
+
     db.delete(booking)
     db.commit()
 
-    return {"ok": True, "message": "Booking deleted"}
+    return {
+        "ok": True,
+        "message": "Booking + Google event deleted"
+    }
 
 
 @router.post("/bookings/{booking_id}/confirm")

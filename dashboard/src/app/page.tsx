@@ -1,184 +1,131 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleString("de-DE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-export default function Page() {
-  const [bookings, setBookings] = useState<any[]>([]);
-
-  async function loadBookings() {
-    const tenant_id = localStorage.getItem("tenant_id");
-
-    if (!tenant_id) {
-      window.location.href = "/login";
-      return;
-    }
-
-    const res = await fetch("/api/bookings", {
-      headers: {
-        "x-tenant-id": tenant_id,
-      },
-    });
-
-    const data = await res.json();
-    setBookings(data);
-  }
+export default function DashboardHome() {
+  const router = useRouter();
 
   useEffect(() => {
-    loadBookings();
-  }, []);
+    const username = localStorage.getItem("username");
 
-  async function deleteBooking(id: string) {
-    const tenant_id = localStorage.getItem("tenant_id");
-
-    const res = await fetch(
-      `/api/bookings/${id}?tenant_id=${tenant_id}`,
-      {
-        method: "DELETE",
-      }
-    );
-
-    if (res.ok) {
-      loadBookings();
+    if (!username) {
+      router.push("/login");
     }
-  }
-
-  async function confirmBooking(id: string) {
-    const tenant_id = localStorage.getItem("tenant_id");
-
-    const res = await fetch(
-      `/api/bookings/${id}/confirm?tenant_id=${tenant_id}`,
-      {
-        method: "POST",
-      }
-    );
-
-    if (res.ok) {
-      loadBookings();
-    }
-  }
+  }, [router]);
 
   function logout() {
-    localStorage.removeItem("tenant_id");
     localStorage.removeItem("username");
-    window.location.href = "/login";
+    localStorage.removeItem("tenant_id");
+    localStorage.removeItem("role");
+
+    router.push("/login");
   }
+
+  const cardStyle = {
+    background: "#0f172a",
+    border: "1px solid #1e293b",
+    borderRadius: "18px",
+    padding: "28px",
+    width: "100%",
+    maxWidth: "500px",
+    cursor: "pointer",
+    transition: "0.2s",
+  };
 
   return (
     <main
       style={{
-        padding: "40px",
-        background: "#0f172a",
         minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top left, #1d4ed8 0, transparent 25%), #020617",
         color: "white",
-        fontFamily: "Arial",
+        padding: "40px",
+        display: "flex",
+        justifyContent: "center",
       }}
     >
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: "20px",
+          width: "100%",
+          maxWidth: "600px",
         }}
       >
-        <h1>📅 Termine Übersicht</h1>
-
-        <button
-          onClick={logout}
+        <div
           style={{
-            background: "#ef4444",
-            color: "white",
-            border: "none",
-            padding: "10px 16px",
-            borderRadius: "8px",
-            cursor: "pointer",
+            marginBottom: "40px",
+            textAlign: "center",
           }}
         >
-          Logout
-        </button>
+          <h1
+            style={{
+              fontSize: "36px",
+              marginBottom: "10px",
+            }}
+          >
+            Dashboard
+          </h1>
+
+          <p
+            style={{
+              color: "#94a3b8",
+              fontSize: "16px",
+            }}
+          >
+            Verwalte deinen Voice Agent
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={cardStyle}
+            onClick={() => router.push("/bookings")}
+          >
+            <h2>📅 Terminübersicht</h2>
+            <p>Alle Buchungen verwalten</p>
+          </div>
+
+          <div
+            style={cardStyle}
+            onClick={() => router.push("/settings")}
+          >
+            <h2>⚙️ Einstellungen</h2>
+            <p>Google Kalender verbinden</p>
+          </div>
+
+          <div
+            style={cardStyle}
+            onClick={() => router.push("/availability")}
+          >
+            <h2>🕒 Öffnungszeiten</h2>
+            <p>Urlaub, Buffer & Zeiten verwalten</p>
+          </div>
+
+          <button
+            onClick={logout}
+            style={{
+              marginTop: "20px",
+              background: "#dc2626",
+              border: "none",
+              color: "white",
+              padding: "14px 30px",
+              borderRadius: "12px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "15px",
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </div>
-
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          background: "#1e293b",
-          borderRadius: "10px",
-          overflow: "hidden",
-        }}
-      >
-        <thead>
-          <tr style={{ background: "#020617" }}>
-            <th style={th}>Name</th>
-            <th style={th}>E-Mail</th>
-            <th style={th}>Datum</th>
-            <th style={th}>Dauer</th>
-            <th style={th}>Status</th>
-            <th style={th}>Aktionen</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {bookings.map((b) => (
-            <tr key={b.id}>
-              <td style={td}>{b.name}</td>
-              <td style={td}>{b.email}</td>
-              <td style={td}>{formatDate(b.requested_start)}</td>
-              <td style={td}>{b.duration_minutes} min</td>
-              <td style={td}>{b.status}</td>
-
-              <td style={td}>
-                {b.status !== "confirmed" && (
-                  <button
-                    onClick={() => confirmBooking(b.id)}
-                    style={{
-                      background: "#22c55e",
-                      color: "white",
-                      border: "none",
-                      padding: "8px 12px",
-                      marginRight: "10px",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Bestätigen
-                  </button>
-                )}
-
-                <button
-                  onClick={() => deleteBooking(b.id)}
-                  style={{
-                    background: "#ef4444",
-                    color: "white",
-                    border: "none",
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Löschen
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </main>
   );
 }
-
-const th = {
-  padding: "14px",
-  textAlign: "left" as const,
-};
-
-const td = {
-  padding: "14px",
-  borderBottom: "1px solid #334155",
-};
