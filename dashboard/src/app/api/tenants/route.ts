@@ -17,3 +17,22 @@ export async function GET() {
     status: res.status,
   });
 }
+
+export async function POST(req: Request) {
+  const body = await req.json();
+
+  const res = await fetch(`${API_URL}/admin/tenants`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-secret": ADMIN_SECRET ?? "",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  return NextResponse.json(data, {
+    status: res.status,
+  });
+}
