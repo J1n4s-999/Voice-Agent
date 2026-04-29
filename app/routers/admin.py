@@ -11,7 +11,7 @@ from app.db import get_db
 from app.models import Booking
 from app.security import hash_password, verify_password
 from app.services.bookings import mark_booking_confirmed
-from app.services.google_calendar import create_event
+from app.services.google_calendar import create_event, update_event
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -26,6 +26,20 @@ class CreateTenantRequest(BaseModel):
     agent_key: str
     username: str
     password: str
+
+class AdminCreateBookingRequest(BaseModel):
+    tenant_id: str
+    name: str
+    email: str
+    requested_start: datetime
+    duration_minutes: int
+
+
+class AdminUpdateBookingRequest(BaseModel):
+    name: str
+    email: str
+    requested_start: datetime
+    duration_minutes: int
 
 
 def require_admin(x_admin_secret: str | None = Header(default=None)):
