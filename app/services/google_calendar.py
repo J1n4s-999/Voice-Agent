@@ -113,3 +113,34 @@ def delete_event(calendar_event_id: str, tenant_id: str):
     ).execute()
 
     return True
+
+def update_event(booking):
+    service, calendar_id = get_oauth_calendar_service(booking.tenant_id)
+
+    start = to_berlin(booking.requested_start)
+    end = start + timedelta(minutes=booking.duration_minutes)
+
+    event = {
+        "summary": f"Termin – {booking.name}",
+        "description": f"E-Mail: {booking.email}",
+        "start": {
+            "dateTime": start.isoformat(),
+            "timeZone": "Europe/Berlin",
+        },
+        "end": {
+            "dateTime": end.isoformat(),
+            "timeZone": "Europe/Berlin",
+        },
+    }
+
+    updated_event = (
+        service.events()
+        .update(
+            calendarId=calendar_id,
+            eventId=booking.calendar_event_id,
+            body=event,
+        )
+        .execute()
+    )
+
+    return updated_event["id"], updated_event.get("hangoutLink")

@@ -116,12 +116,12 @@ def request_booking(payload: BookingRequest, db: Session = Depends(get_db)):
     )
 
     availability = check_availability_payload(
-    db=db,
-    requested_start=requested_start,
-    duration_minutes=payload.duration_minutes,
-    tenant_id=tenant_id,
-    alternative_count=3,
-    slot_interval_minutes=30,
+        db=db,
+        requested_start=requested_start,
+        duration_minutes=payload.duration_minutes,
+        tenant_id=tenant_id,
+        alternative_count=3,
+        slot_interval_minutes=30,
     )
 
     logger.info(
