@@ -213,12 +213,14 @@ def create_booking_manually(
 def update_booking_manually(
     booking_id: str,
     payload: AdminUpdateBookingRequest,
+    tenant_id: str = Query(...),
     db: Session = Depends(get_db),
     _admin=Depends(require_admin),
 ):
     booking = (
         db.query(Booking)
         .filter(Booking.id == booking_id)
+        .filter(Booking.tenant_id == tenant_id)
         .first()
     )
 
