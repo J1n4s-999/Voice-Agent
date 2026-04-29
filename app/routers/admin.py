@@ -175,6 +175,73 @@ def create_tenant(
         "username": username,
     }
 
+@router.post("/bookings")
+def create_booking_manually(
+    payload: AdminCreateBookingRequest,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    booking = Booking(
+        tenant_id=payload.tenant_id,
+        name=payload.name,
+        email=payload.email,
+        requested_start=payload.requested_start,
+        duration_minutes=payload.duration_minutes,
+        status="confirmed",
+    )
+
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    event_id, meet_link = create_event(booking)
+
+    booking.calendar_event_id = event_id
+    booking.google_meet_link = meet_link
+
+    db.commit()
+    db.refresh(booking)
+
+    return {
+        "ok": True,
+        "booking_id": booking.id,
+        "calendar_event_id": booking.calendar_event_id,
+        "status": booking.status,
+    }
+
+@router.patch("/bookings/{booking_id}")
+def update_booking_manually(
+    booking_id: str,
+    payload: AdminUpdateBookingRequest,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_admin),
+):
+    booking = (
+        db.query(Booking)
+        .filter(Booking.id == booking_id)
+        .first()
+    )
+
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    booking.name = payload.name
+    booking.email = payload.email
+    booking.requested_start = payload.requested_start
+    booking.duration_minutes = payload.duration_minutes
+
+    if booking.status == "confirmed" and booking.calendar_event_id:
+        event_id, meet_link = update_event(booking)
+        booking.google_meet_link = meet_link
+
+    db.commit()
+    db.refresh(booking)
+
+    return {
+        "ok": True,
+        "booking_id": booking.id,
+        "status": booking.status,
+    }
 
 @router.get("/bookings")
 def list_bookings(
