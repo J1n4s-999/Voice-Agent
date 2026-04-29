@@ -432,6 +432,16 @@ export default function BookingsPage() {
           </tbody>
         </table>
       </div>
+      <style jsx>{`
+        @keyframes spin {
+            from {
+            transform: rotate(0deg);
+            }
+            to {
+            transform: rotate(360deg);
+            }
+        }
+        `}</style>
     </main>
   );
 }
@@ -604,4 +614,5 @@ const spinnerStyle = {
   border: "4px solid #334155",
   borderTopColor: "#38bdf8",
   margin: "0 auto 18px",
+  animation: "spin 1s linear infinite",
 };
