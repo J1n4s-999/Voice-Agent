@@ -36,6 +36,9 @@ export default function BookingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [actionMessage, setActionMessage] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
+
   async function loadBookings() {
     const tenantId = localStorage.getItem("tenant_id");
 
@@ -92,6 +95,8 @@ export default function BookingsPage() {
       requested_start: toDatetimeLocal(booking.requested_start),
       duration_minutes: String(booking.duration_minutes),
     });
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function saveBooking(e: React.FormEvent) {
@@ -110,6 +115,7 @@ export default function BookingsPage() {
     }
 
     setSaving(true);
+    setActionMessage(editingId ? "Termin wird aktualisiert..." : "Termin wird erstellt...");
 
     const payload = {
       tenant_id: tenantId,
@@ -142,19 +148,24 @@ export default function BookingsPage() {
       body: JSON.stringify(body),
     });
 
-    setSaving(false);
-
     if (!res.ok) {
       const data = await res.json().catch(() => null);
+      setSaving(false);
+      setActionMessage("");
       alert(data?.detail || "Fehler beim Speichern.");
       return;
     }
 
     resetForm();
     await loadBookings();
+
+    setSaving(false);
+    setActionMessage("");
   }
 
-  async function deleteBooking(id: string) {
+  async function performDelete() {
+    if (!deleteTarget) return;
+
     const tenantId = localStorage.getItem("tenant_id");
 
     if (!tenantId) {
@@ -162,17 +173,21 @@ export default function BookingsPage() {
       return;
     }
 
-    if (!confirm("Termin wirklich löschen?")) return;
+    setDeleteTarget(null);
+    setActionMessage("Termin wird gelöscht...");
 
-    const res = await fetch(`/api/bookings/${id}?tenant_id=${tenantId}`, {
+    const res = await fetch(`/api/bookings/${deleteTarget.id}?tenant_id=${tenantId}`, {
       method: "DELETE",
     });
 
-    if (res.ok) {
-      await loadBookings();
-    } else {
+    if (!res.ok) {
+      setActionMessage("");
       alert("Fehler beim Löschen.");
+      return;
     }
+
+    await loadBookings();
+    setActionMessage("");
   }
 
   async function confirmBooking(id: string) {
@@ -183,16 +198,23 @@ export default function BookingsPage() {
       return;
     }
 
+    setActionMessage("Termin wird bestätigt und im Google Kalender eingetragen...");
+
     const res = await fetch(`/api/bookings/${id}/confirm?tenant_id=${tenantId}`, {
       method: "POST",
     });
 
-    if (res.ok) {
-      await loadBookings();
-    } else {
+    if (!res.ok) {
+      setActionMessage("");
       alert("Fehler beim Bestätigen.");
+      return;
     }
+
+    await loadBookings();
+    setActionMessage("");
   }
+
+  const buttonsDisabled = Boolean(actionMessage) || saving;
 
   if (loading) {
     return (
@@ -204,6 +226,50 @@ export default function BookingsPage() {
 
   return (
     <main style={pageStyle}>
+      {actionMessage && (
+        <div style={overlayStyle}>
+          <div style={loadingModalStyle}>
+            <div style={spinnerStyle} />
+            <h2 style={{ marginBottom: 8 }}>Bitte warten</h2>
+            <p style={{ color: "#94a3b8", margin: 0 }}>{actionMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div style={overlayStyle}>
+          <div style={confirmModalStyle}>
+            <h2 style={{ marginTop: 0 }}>Termin löschen?</h2>
+            <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
+              Möchtest du den Termin von{" "}
+              <strong>{deleteTarget.name}</strong> am{" "}
+              <strong>{formatDate(deleteTarget.requested_start)}</strong>{" "}
+              wirklich löschen?
+            </p>
+            <p style={{ color: "#94a3b8", fontSize: 14 }}>
+              Falls der Termin bereits im Google Kalender eingetragen ist, wird
+              er dort ebenfalls gelöscht.
+            </p>
+
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                style={secondaryButton}
+              >
+                Abbrechen
+              </button>
+
+              <button
+                onClick={performDelete}
+                style={deleteButton}
+              >
+                Ja, löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={headerStyle}>
         <button onClick={() => router.push("/")} style={backButton}>
           ← Zurück
@@ -226,6 +292,7 @@ export default function BookingsPage() {
           <input
             placeholder="Name"
             value={form.name}
+            disabled={buttonsDisabled}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             style={inputStyle}
           />
@@ -234,6 +301,7 @@ export default function BookingsPage() {
             placeholder="E-Mail"
             type="email"
             value={form.email}
+            disabled={buttonsDisabled}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             style={inputStyle}
           />
@@ -241,6 +309,7 @@ export default function BookingsPage() {
           <input
             type="datetime-local"
             value={form.requested_start}
+            disabled={buttonsDisabled}
             onChange={(e) =>
               setForm({ ...form, requested_start: e.target.value })
             }
@@ -251,6 +320,7 @@ export default function BookingsPage() {
             placeholder="Dauer in Minuten"
             type="number"
             value={form.duration_minutes}
+            disabled={buttonsDisabled}
             onChange={(e) =>
               setForm({ ...form, duration_minutes: e.target.value })
             }
@@ -258,7 +328,7 @@ export default function BookingsPage() {
           />
 
           <div style={{ display: "flex", gap: 10 }}>
-            <button type="submit" disabled={saving} style={primaryButton}>
+            <button type="submit" disabled={buttonsDisabled} style={primaryButton}>
               {saving
                 ? "Speichern..."
                 : editingId
@@ -267,7 +337,12 @@ export default function BookingsPage() {
             </button>
 
             {editingId && (
-              <button type="button" onClick={resetForm} style={secondaryButton}>
+              <button
+                type="button"
+                onClick={resetForm}
+                disabled={buttonsDisabled}
+                style={secondaryButton}
+              >
                 Abbrechen
               </button>
             )}
@@ -326,6 +401,7 @@ export default function BookingsPage() {
 
                   <td style={tdStyle}>
                     <button
+                      disabled={buttonsDisabled}
                       onClick={() => startEdit(booking)}
                       style={editButton}
                     >
@@ -334,6 +410,7 @@ export default function BookingsPage() {
 
                     {booking.status !== "confirmed" && (
                       <button
+                        disabled={buttonsDisabled}
                         onClick={() => confirmBooking(booking.id)}
                         style={confirmButton}
                       >
@@ -342,7 +419,8 @@ export default function BookingsPage() {
                     )}
 
                     <button
-                      onClick={() => deleteBooking(booking.id)}
+                      disabled={buttonsDisabled}
+                      onClick={() => setDeleteTarget(booking)}
                       style={deleteButton}
                     >
                       Löschen
@@ -484,4 +562,46 @@ const backButton = {
   border: "none",
   cursor: "pointer",
   fontSize: "16px",
+};
+
+const overlayStyle = {
+  position: "fixed" as const,
+  inset: 0,
+  background: "rgba(2, 6, 23, 0.76)",
+  backdropFilter: "blur(6px)",
+  zIndex: 1000,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 24,
+};
+
+const loadingModalStyle = {
+  width: "100%",
+  maxWidth: 420,
+  background: "#0f172a",
+  border: "1px solid #334155",
+  borderRadius: 22,
+  padding: 30,
+  textAlign: "center" as const,
+  boxShadow: "0 30px 80px rgba(0,0,0,0.45)",
+};
+
+const confirmModalStyle = {
+  width: "100%",
+  maxWidth: 480,
+  background: "#0f172a",
+  border: "1px solid #334155",
+  borderRadius: 22,
+  padding: 28,
+  boxShadow: "0 30px 80px rgba(0,0,0,0.45)",
+};
+
+const spinnerStyle = {
+  width: 42,
+  height: 42,
+  borderRadius: "50%",
+  border: "4px solid #334155",
+  borderTopColor: "#38bdf8",
+  margin: "0 auto 18px",
 };
