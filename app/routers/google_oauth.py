@@ -198,7 +198,6 @@ def google_status(
         "updated_at": connection["updated_at"],
     }
 
-
 @router.delete("/disconnect")
 def google_disconnect(
     tenant_id: str = Query(...),
