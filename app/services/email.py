@@ -7,7 +7,6 @@ from app.config import settings
 
 BERLIN_TZ = ZoneInfo("Europe/Berlin")
 
-
 def to_berlin(dt: datetime) -> datetime:
     """
     Sorgt dafür, dass ein datetime sicher in Europe/Berlin vorliegt.
