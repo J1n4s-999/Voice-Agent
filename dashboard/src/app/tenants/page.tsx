@@ -14,6 +14,7 @@ export default function TenantsPage() {
 
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [name, setName] = useState("");
   const [agentKey, setAgentKey] = useState("");
@@ -32,20 +33,42 @@ export default function TenantsPage() {
   }, [router]);
 
   async function loadTenants() {
-    const res = await fetch("/api/tenants", {
-      cache: "no-store",
-    });
+    try {
+      setLoading(true);
+      setError("");
 
-    const data = await res.json();
+      const res = await fetch("/api/tenants", {
+        cache: "no-store",
+      });
 
-    setTenants(data);
-    setLoading(false);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setTenants([]);
+        setError(data?.detail || data?.error || "Kunden konnten nicht geladen werden.");
+        return;
+      }
+
+      if (Array.isArray(data)) {
+        setTenants(data);
+      } else if (Array.isArray(data.tenants)) {
+        setTenants(data.tenants);
+      } else {
+        setTenants([]);
+        setError("Die API hat kein gültiges Kunden-Array zurückgegeben.");
+      }
+    } catch (err) {
+      console.error(err);
+      setTenants([]);
+      setError("Fehler beim Laden der Kunden.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function openTenant(tenant: Tenant) {
     localStorage.setItem("tenant_id", tenant.id);
     localStorage.setItem("tenant_name", tenant.name);
-
     router.push("/");
   }
 
@@ -71,7 +94,7 @@ export default function TenantsPage() {
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
-      alert("Fehler beim Erstellen des Kunden.");
+      alert(data?.detail || data?.error || "Fehler beim Erstellen des Kunden.");
       return;
     }
 
@@ -93,19 +116,15 @@ export default function TenantsPage() {
   }
 
   if (loading) {
-    return (
-      <main style={pageStyle}>
-        <p>Lade Kunden...</p>
-      </main>
-    );
+    return <main style={pageStyle}>Lade Kunden...</main>;
   }
 
   return (
     <main style={pageStyle}>
       <div style={headerStyle}>
         <div>
-          <h1 style={{ fontSize: 34, margin: 0 }}>Kundenübersicht</h1>
-          <p style={{ color: "#94a3b8", marginTop: 8 }}>
+          <h1 style={{ margin: 0 }}>Kundenübersicht</h1>
+          <p style={{ color: "#94a3b8" }}>
             Verwalte Kunden, Agent Keys und Kunden-Logins.
           </p>
         </div>
@@ -115,33 +134,35 @@ export default function TenantsPage() {
         </button>
       </div>
 
+      {error && <div style={errorBox}>{error}</div>}
+
       <section style={formCard}>
-        <h2 style={{ marginTop: 0, marginBottom: 18 }}>Neuen Kunden erstellen</h2>
+        <h2 style={{ marginTop: 0 }}>Neuen Kunden erstellen</h2>
 
         <div style={gridStyle}>
           <input
-            placeholder="Firmenname, z. B. KFZ Müller"
+            placeholder="Kundenname"
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={inputStyle}
           />
 
           <input
-            placeholder="Agent Key, z. B. kfz-mueller"
+            placeholder="Agent Key"
             value={agentKey}
             onChange={(e) => setAgentKey(e.target.value)}
             style={inputStyle}
           />
 
           <input
-            placeholder="Benutzername, z. B. kfzadmin"
+            placeholder="Admin Benutzername"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             style={inputStyle}
           />
 
           <input
-            placeholder="Passwort"
+            placeholder="Admin Passwort"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -155,7 +176,11 @@ export default function TenantsPage() {
       </section>
 
       <section>
-        <h2 style={{ marginBottom: 16 }}>Kunden</h2>
+        <h2>Kunden</h2>
+
+        {tenants.length === 0 && !error && (
+          <p style={{ color: "#94a3b8" }}>Noch keine Kunden vorhanden.</p>
+        )}
 
         <div style={tenantGrid}>
           {tenants.map((tenant) => (
@@ -164,15 +189,11 @@ export default function TenantsPage() {
               onClick={() => openTenant(tenant)}
               style={tenantCard}
             >
-              <h3 style={{ marginTop: 0, marginBottom: 8 }}>{tenant.name}</h3>
-
-              <p style={{ color: "#94a3b8", marginBottom: 12 }}>
+              <h3 style={{ marginTop: 0 }}>{tenant.name}</h3>
+              <p style={{ color: "#94a3b8" }}>
                 Agent Key: {tenant.agent_key}
               </p>
-
-              <p style={{ color: "#38bdf8", fontWeight: 700 }}>
-                Dashboard öffnen →
-              </p>
+              <strong>Dashboard öffnen →</strong>
             </div>
           ))}
         </div>
@@ -181,7 +202,7 @@ export default function TenantsPage() {
   );
 }
 
-const pageStyle = {
+const pageStyle: React.CSSProperties = {
   minHeight: "100vh",
   background:
     "radial-gradient(circle at top left, rgba(37,99,235,0.22), transparent 30%), #020617",
@@ -191,14 +212,14 @@ const pageStyle = {
     "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Arial",
 };
 
-const headerStyle = {
+const headerStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   marginBottom: 30,
 };
 
-const formCard = {
+const formCard: React.CSSProperties = {
   background: "rgba(15, 23, 42, 0.9)",
   padding: 24,
   borderRadius: 20,
@@ -207,20 +228,20 @@ const formCard = {
   boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
 };
 
-const gridStyle = {
+const gridStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: 12,
   marginBottom: 16,
 };
 
-const tenantGrid = {
+const tenantGrid: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
   gap: 20,
 };
 
-const tenantCard = {
+const tenantCard: React.CSSProperties = {
   background: "rgba(15, 23, 42, 0.92)",
   padding: 24,
   borderRadius: 20,
@@ -229,7 +250,7 @@ const tenantCard = {
   transition: "transform 0.15s ease, border-color 0.15s ease",
 };
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "12px 14px",
   borderRadius: 12,
@@ -240,7 +261,7 @@ const inputStyle = {
   fontSize: 14,
 };
 
-const primaryButton = {
+const primaryButton: React.CSSProperties = {
   padding: "12px 18px",
   background: "linear-gradient(135deg, #2563eb, #0ea5e9)",
   color: "white",
@@ -250,7 +271,7 @@ const primaryButton = {
   fontWeight: 800,
 };
 
-const logoutButton = {
+const logoutButton: React.CSSProperties = {
   padding: "10px 16px",
   background: "#ef4444",
   color: "white",
@@ -258,4 +279,13 @@ const logoutButton = {
   borderRadius: 10,
   cursor: "pointer",
   fontWeight: 700,
+};
+
+const errorBox: React.CSSProperties = {
+  background: "rgba(239, 68, 68, 0.15)",
+  border: "1px solid rgba(239, 68, 68, 0.5)",
+  color: "#fecaca",
+  padding: 14,
+  borderRadius: 14,
+  marginBottom: 20,
 };
