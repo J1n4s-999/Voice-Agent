@@ -21,7 +21,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/userinfo.email",
 ]
 
-
 def require_admin(x_admin_secret: str | None = Header(default=None)):
     if not x_admin_secret or x_admin_secret != settings.admin_secret:
         raise HTTPException(status_code=401, detail="Unauthorized")
